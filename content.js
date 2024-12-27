@@ -11,44 +11,79 @@ if (!window.multiLinkExtensionLoaded) {
             const styleElement = document.createElement('style');
             styleElement.textContent = `
                 .multi-link-highlight {
-                    background-color: rgba(255, 235, 59, 0.5) !important;
+                    background-color: rgba(255, 235, 59, 0.7) !important;
                     outline: 3px solid #ffc107 !important;
                     outline-offset: 2px !important;
-                    box-shadow: 0 0 8px rgba(255, 193, 7, 0.6) !important;
+                    box-shadow: 0 0 12px rgba(255, 193, 7, 0.8) !important;
                     position: relative !important;
                     z-index: 2147483640 !important;
                 }
+                .multi-link-highlight::before {
+                    content: '' !important;
+                    position: absolute !important;
+                    top: -5px !important;
+                    left: -5px !important;
+                    right: -5px !important;
+                    bottom: -5px !important;
+                    background: rgba(255, 235, 59, 0.2) !important;
+                    border-radius: 4px !important;
+                    z-index: -1 !important;
+                    pointer-events: none !important;
+                }
                 .multi-link-similar {
-                    background-color: rgba(255, 138, 128, 0.5) !important;
+                    background-color: rgba(255, 138, 128, 0.7) !important;
                     outline: 3px solid #ff5252 !important;
                     outline-offset: 2px !important;
-                    box-shadow: 0 0 8px rgba(255, 82, 82, 0.6) !important;
+                    box-shadow: 0 0 12px rgba(255, 82, 82, 0.8) !important;
                     position: relative !important;
                     z-index: 2147483640 !important;
+                }
+                .multi-link-similar::before {
+                    content: '' !important;
+                    position: absolute !important;
+                    top: -5px !important;
+                    left: -5px !important;
+                    right: -5px !important;
+                    bottom: -5px !important;
+                    background: rgba(255, 82, 82, 0.2) !important;
+                    border-radius: 4px !important;
+                    z-index: -1 !important;
+                    pointer-events: none !important;
                 }
                 .multi-link-close {
                     position: absolute !important;
-                    top: -10px !important;
-                    right: -10px !important;
-                    width: 20px !important;
-                    height: 20px !important;
+                    top: -12px !important;
+                    right: -12px !important;
+                    width: 24px !important;
+                    height: 24px !important;
                     background-color: #ff5252 !important;
                     color: white !important;
                     border-radius: 50% !important;
                     display: flex !important;
                     align-items: center !important;
                     justify-content: center !important;
-                    font-size: 14px !important;
+                    font-size: 16px !important;
                     cursor: pointer !important;
                     z-index: 2147483647 !important;
                     font-family: Arial, sans-serif !important;
                     line-height: 1 !important;
                     border: 2px solid white !important;
-                    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3) !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
                 }
                 .multi-link-close:hover {
                     background-color: #ff1744 !important;
                     transform: scale(1.1) !important;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+                }
+
+                /* Force parent elements to show highlighted items */
+                .multi-link-highlight, 
+                .multi-link-similar,
+                *:has(> .multi-link-highlight),
+                *:has(> .multi-link-similar) {
+                    opacity: 1 !important;
+                    visibility: visible !important;
+                    display: block !important;
                 }
             `;
             
