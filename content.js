@@ -82,7 +82,7 @@ if (!window.multiLinkExtensionLoaded) {
         link.appendChild(closeBtn);
     }
 
-    // Function to check if an element is truly hidden (not just out of viewport)
+    // Function to check if an element is truly hidden
     function isElementTrulyHidden(element) {
         const style = window.getComputedStyle(element);
         
@@ -112,35 +112,11 @@ if (!window.multiLinkExtensionLoaded) {
         return false;
     }
 
-    // Function to check if an element is in or near the viewport
-    function isElementInViewport(element) {
-        const rect = element.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
-        
-        return !(rect.bottom < 0 || 
-                rect.top > viewportHeight || 
-                rect.right < 0 || 
-                rect.left > viewportWidth);
-    }
-
     // Function to find all clickable elements
-    function findClickableElements(request) {
+    function findClickableElements() {
         // Get all links that aren't truly hidden
-        const visibleLinks = Array.from(document.getElementsByTagName('a'))
+        return Array.from(document.getElementsByTagName('a'))
             .filter(link => !isElementTrulyHidden(link));
-
-        // If the clicked link is in viewport, only return links in viewport
-        // If the clicked link is out of viewport, return all non-hidden links
-        const clickedLink = visibleLinks.find(link => 
-            getElementUrl(link) === request.data.linkUrl
-        );
-
-        if (clickedLink && isElementInViewport(clickedLink)) {
-            return visibleLinks.filter(isElementInViewport);
-        }
-        
-        return visibleLinks;
     }
 
     // Function to get element's target URL
@@ -214,7 +190,7 @@ if (!window.multiLinkExtensionLoaded) {
             // Remove previous highlights
             removeAllHighlights();
             
-            const allElements = findClickableElements(request);
+            const allElements = findClickableElements();
             const clickedElement = Array.from(allElements).find(el => 
                 getElementUrl(el) === request.data.linkUrl
             );
