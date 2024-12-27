@@ -82,31 +82,19 @@ if (!window.multiLinkExtensionLoaded) {
         link.appendChild(closeBtn);
     }
 
-    // Function to check if an element is visible
-    function isElementVisible(element) {
+    // Function to check if an element is truly hidden (not just out of viewport)
+    function isElementTrulyHidden(element) {
         const style = window.getComputedStyle(element);
         
         // Check basic visibility
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-            return false;
+            return true;
         }
 
         // Check if element has size
         const rect = element.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
-            return false;
-        }
-
-        // Check if element is within viewport or close to it (with some margin)
-        const margin = 100; // pixels
-        const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
-        
-        if (rect.bottom < -margin || 
-            rect.top > viewportHeight + margin || 
-            rect.right < -margin || 
-            rect.left > viewportWidth + margin) {
-            return false;
+            return true;
         }
 
         // Check if any parent element hides this element
@@ -116,19 +104,43 @@ if (!window.multiLinkExtensionLoaded) {
             if (parentStyle.display === 'none' || 
                 parentStyle.visibility === 'hidden' || 
                 parentStyle.opacity === '0') {
-                return false;
+                return true;
             }
             parent = parent.parentElement;
         }
 
-        return true;
+        return false;
+    }
+
+    // Function to check if an element is in or near the viewport
+    function isElementInViewport(element) {
+        const rect = element.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        
+        return !(rect.bottom < 0 || 
+                rect.top > viewportHeight || 
+                rect.right < 0 || 
+                rect.left > viewportWidth);
     }
 
     // Function to find all clickable elements
-    function findClickableElements() {
-        // Get all links and filter visible ones
-        return Array.from(document.getElementsByTagName('a'))
-            .filter(isElementVisible);
+    function findClickableElements(request) {
+        // Get all links that aren't truly hidden
+        const visibleLinks = Array.from(document.getElementsByTagName('a'))
+            .filter(link => !isElementTrulyHidden(link));
+
+        // If the clicked link is in viewport, only return links in viewport
+        // If the clicked link is out of viewport, return all non-hidden links
+        const clickedLink = visibleLinks.find(link => 
+            getElementUrl(link) === request.data.linkUrl
+        );
+
+        if (clickedLink && isElementInViewport(clickedLink)) {
+            return visibleLinks.filter(isElementInViewport);
+        }
+        
+        return visibleLinks;
     }
 
     // Function to get element's target URL
@@ -202,7 +214,7 @@ if (!window.multiLinkExtensionLoaded) {
             // Remove previous highlights
             removeAllHighlights();
             
-            const allElements = findClickableElements();
+            const allElements = findClickableElements(request);
             const clickedElement = Array.from(allElements).find(el => 
                 getElementUrl(el) === request.data.linkUrl
             );
