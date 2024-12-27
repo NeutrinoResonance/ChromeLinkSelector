@@ -267,6 +267,24 @@ if (!window.multiLinkExtensionLoaded) {
             }
         } else if (request.action === "deselectAllLinks") {
             removeAllHighlights();
+            if (sendResponse) sendResponse();
+        } else if (request.action === "getSelectedUrls") {
+            sendResponse({ urls: getSelectedUrls() });
+        } else if (request.action === "removeUrl") {
+            // Find and remove highlight from specific URL
+            highlightedElements.forEach(element => {
+                if (getElementUrl(element) === request.url) {
+                    element.classList.remove('multi-link-highlight', 'multi-link-similar');
+                    const closeBtn = element.querySelector('.multi-link-close');
+                    if (closeBtn) closeBtn.remove();
+                    highlightedElements.delete(element);
+                    selectedUrls.delete(request.url);
+                }
+            });
+            if (sendResponse) sendResponse();
         }
+        
+        // Required for async sendResponse
+        return true;
     });
 }

@@ -1,15 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Chrome Link Selector</title>
-  <link rel="stylesheet" type="text/css" href="styles.css">
+    <title>Chrome Link Selector</title>
+    <style>
+        body {
+            width: 400px;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        h1 {
+            font-size: 18px;
+            margin: 0 0 16px 0;
+            color: #333;
+        }
+        .url-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+        .url-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            background: #f5f5f5;
+            transition: background-color 0.2s;
+        }
+        .url-item:hover {
+            background: #eeeeee;
+        }
+        .url-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 8px;
+            color: #444;
+        }
+        .remove-url {
+            background: #ff5252;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        .remove-url:hover {
+            background: #ff1744;
+        }
+        .no-urls {
+            color: #666;
+            font-style: italic;
+            padding: 8px;
+            text-align: center;
+        }
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .button {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .open-all {
+            background: #4CAF50;
+            color: white;
+        }
+        .open-all:hover {
+            background: #43A047;
+        }
+        .deselect-all {
+            background: #f44336;
+            color: white;
+        }
+        .deselect-all:hover {
+            background: #e53935;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>My Extension</h1>
-    <p>Welcome to my Chrome extension!</p>
-    <button id="actionButton">Click Me!</button>
-  </div>
-  <script src="popup.js"></script>
+    <h1>Selected Links</h1>
+    <div class="url-list" id="urlList">
+        <div class="no-urls">No links selected</div>
+    </div>
+    <div class="controls">
+        <button class="button open-all" id="openAllBtn">Open All</button>
+        <button class="button deselect-all" id="deselectAllBtn">Deselect All</button>
+    </div>
+    <script src="popup.js"></script>
 </body>
 </html>
