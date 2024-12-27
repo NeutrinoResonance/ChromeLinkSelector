@@ -1,21 +1,27 @@
 // Create context menu items when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: "openSimilarLinks",
+    id: "selectSimilarLinks",
     title: "Select Similar Links",
     contexts: ["link"]
   });
 
   chrome.contextMenus.create({
-    id: "openAllSelected",
+    id: "openSelectedLinks",
     title: "Open All Selected Links",
     contexts: ["all"]  // Available everywhere since we might have links selected
+  });
+
+  chrome.contextMenus.create({
+    id: "deselectAllLinks",
+    title: "Deselect All Links",
+    contexts: ["all"]
   });
 });
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "openSimilarLinks") {
+  if (info.menuItemId === "selectSimilarLinks") {
     console.log("Context menu info:", info);
     
     // Inject content script first if needed
@@ -36,9 +42,13 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     }).catch(err => {
       console.error("Error injecting content script:", err);
     });
-  } else if (info.menuItemId === "openAllSelected") {
+  } else if (info.menuItemId === "openSelectedLinks") {
     chrome.tabs.sendMessage(tab.id, {
       action: "openSelectedLinks"
+    });
+  } else if (info.menuItemId === "deselectAllLinks") {
+    chrome.tabs.sendMessage(tab.id, {
+      action: "deselectAllLinks"
     });
   }
 });

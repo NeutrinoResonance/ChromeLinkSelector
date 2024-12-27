@@ -231,7 +231,7 @@ if (!window.multiLinkExtensionLoaded) {
             removeAllHighlights();
             
             const allElements = findClickableElements();
-            const clickedElement = Array.from(allElements).find(el => 
+            const clickedElement = allElements.find(el => 
                 getElementUrl(el) === request.data.linkUrl
             );
             
@@ -265,6 +265,8 @@ if (!window.multiLinkExtensionLoaded) {
                     urls: urls
                 });
             }
+        } else if (request.action === "deselectAllLinks") {
+            removeAllHighlights();
         }
     });
 }
