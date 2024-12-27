@@ -11,39 +11,44 @@ if (!window.multiLinkExtensionLoaded) {
             const styleElement = document.createElement('style');
             styleElement.textContent = `
                 .multi-link-highlight {
-                    background-color: #ffeb3b !important;
-                    outline: 2px solid #ffc107 !important;
-                    transition: all 0.3s ease-in-out;
+                    background-color: rgba(255, 235, 59, 0.5) !important;
+                    outline: 3px solid #ffc107 !important;
+                    outline-offset: 2px !important;
+                    box-shadow: 0 0 8px rgba(255, 193, 7, 0.6) !important;
                     position: relative !important;
+                    z-index: 2147483640 !important;
                 }
                 .multi-link-similar {
-                    background-color: #ff8a80 !important;
-                    outline: 2px solid #ff5252 !important;
-                    transition: all 0.3s ease-in-out;
-                    box-shadow: 0 0 5px rgba(255, 82, 82, 0.3) !important;
+                    background-color: rgba(255, 138, 128, 0.5) !important;
+                    outline: 3px solid #ff5252 !important;
+                    outline-offset: 2px !important;
+                    box-shadow: 0 0 8px rgba(255, 82, 82, 0.6) !important;
                     position: relative !important;
+                    z-index: 2147483640 !important;
                 }
                 .multi-link-close {
                     position: absolute !important;
-                    top: -8px !important;
-                    right: -8px !important;
-                    width: 16px !important;
-                    height: 16px !important;
+                    top: -10px !important;
+                    right: -10px !important;
+                    width: 20px !important;
+                    height: 20px !important;
                     background-color: #ff5252 !important;
                     color: white !important;
                     border-radius: 50% !important;
                     display: flex !important;
                     align-items: center !important;
                     justify-content: center !important;
-                    font-size: 12px !important;
+                    font-size: 14px !important;
                     cursor: pointer !important;
-                    z-index: 10000 !important;
+                    z-index: 2147483647 !important;
                     font-family: Arial, sans-serif !important;
                     line-height: 1 !important;
-                    border: 1px solid white !important;
+                    border: 2px solid white !important;
+                    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3) !important;
                 }
                 .multi-link-close:hover {
                     background-color: #ff1744 !important;
+                    transform: scale(1.1) !important;
                 }
             `;
             
