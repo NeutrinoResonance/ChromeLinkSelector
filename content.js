@@ -82,10 +82,53 @@ if (!window.multiLinkExtensionLoaded) {
         link.appendChild(closeBtn);
     }
 
+    // Function to check if an element is visible
+    function isElementVisible(element) {
+        const style = window.getComputedStyle(element);
+        
+        // Check basic visibility
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return false;
+        }
+
+        // Check if element has size
+        const rect = element.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+            return false;
+        }
+
+        // Check if element is within viewport or close to it (with some margin)
+        const margin = 100; // pixels
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        
+        if (rect.bottom < -margin || 
+            rect.top > viewportHeight + margin || 
+            rect.right < -margin || 
+            rect.left > viewportWidth + margin) {
+            return false;
+        }
+
+        // Check if any parent element hides this element
+        let parent = element.parentElement;
+        while (parent) {
+            const parentStyle = window.getComputedStyle(parent);
+            if (parentStyle.display === 'none' || 
+                parentStyle.visibility === 'hidden' || 
+                parentStyle.opacity === '0') {
+                return false;
+            }
+            parent = parent.parentElement;
+        }
+
+        return true;
+    }
+
     // Function to find all clickable elements
     function findClickableElements() {
-        // For now, just return traditional links
-        return Array.from(document.getElementsByTagName('a'));
+        // Get all links and filter visible ones
+        return Array.from(document.getElementsByTagName('a'))
+            .filter(isElementVisible);
     }
 
     // Function to get element's target URL
