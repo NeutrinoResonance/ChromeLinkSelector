@@ -16,6 +16,18 @@
     "contextMenus",
     "scripting"
   ],
+  "host_permissions": [
+    "*://*.amazon.com/*",
+    "*://*.amazon.co.uk/*",
+    "*://*.amazon.ca/*",
+    "*://*.amazon.com.au/*",
+    "*://*.amazon.de/*",
+    "*://*.amazon.fr/*",
+    "*://*.amazon.it/*",
+    "*://*.amazon.es/*",
+    "*://*.amazon.co.jp/*",
+    "*://*.amazon.in/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

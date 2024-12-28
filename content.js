@@ -301,13 +301,53 @@ if (!window.multiLinkExtensionLoaded) {
         }
     }
 
+    // Function to process URLs before opening
+    function processUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            
+            // Check if it's an Amazon domain
+            if (urlObj.hostname.includes('amazon.')) {
+                // Remove existing tag if present
+                const searchParams = new URLSearchParams(urlObj.search);
+                searchParams.delete('tag');
+                
+                // Add our affiliate tag
+                searchParams.append('tag', 'multilink-20');
+                
+                // Clean up the URL path
+                let path = urlObj.pathname;
+                
+                // Handle product pages
+                if (path.includes('/dp/') || path.includes('/gp/product/')) {
+                    // Extract the ASIN (Amazon Standard Identification Number)
+                    const asinMatch = path.match(/(?:\/dp\/|\/gp\/product\/)([A-Z0-9]{10})/);
+                    if (asinMatch) {
+                        const asin = asinMatch[1];
+                        // Simplify to the canonical product URL format
+                        path = `/dp/${asin}`;
+                    }
+                }
+                
+                // Reconstruct the URL
+                return `${urlObj.protocol}//${urlObj.hostname}${path}?${searchParams.toString()}`;
+            }
+            
+            return url;
+        } catch (e) {
+            console.error('Error processing URL:', e);
+            return url;
+        }
+    }
+
     // Function to get all selected URLs
     function getSelectedUrls() {
         const urls = [];
         highlightedElements.forEach(element => {
             const url = getElementUrl(element);
             if (url) {
-                urls.push(url);
+                // Process URL before adding to the list
+                urls.push(processUrl(url));
             }
         });
         return urls;
