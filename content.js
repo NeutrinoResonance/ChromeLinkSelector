@@ -260,11 +260,6 @@ if (!window.multiLinkExtensionLoaded) {
         } else if (request.action === "highlightSingleLink") {
             console.log("Single link selected:", request.data.linkUrl);
             
-            // Remove previous highlights if not holding shift key
-            if (!window.event?.shiftKey) {
-                removeAllHighlights();
-            }
-            
             const allElements = findClickableElements();
             const clickedElement = allElements.find(el => 
                 getElementUrl(el) === request.data.linkUrl
