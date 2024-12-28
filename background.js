@@ -8,7 +8,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
   chrome.contextMenus.create({
     id: "selectSingleLink",
-    title: "Select Only This Link",
+    title: "Select Individual Link",
     contexts: ["link"]
   });
 
