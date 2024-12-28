@@ -308,11 +308,14 @@ if (!window.multiLinkExtensionLoaded) {
             
             // Check if it's an Amazon domain
             if (urlObj.hostname.includes('amazon.')) {
-                // Remove existing tag if present
                 const searchParams = new URLSearchParams(urlObj.search);
-                searchParams.delete('tag');
                 
-                // Add our affiliate tag
+                // If there's already an affiliate tag, preserve the original URL
+                if (searchParams.has('tag')) {
+                    return url;
+                }
+                
+                // Add our affiliate tag only if none exists
                 searchParams.append('tag', 'multilink-20');
                 
                 // Clean up the URL path
