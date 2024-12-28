@@ -256,17 +256,35 @@ if (!window.multiLinkExtensionLoaded) {
     // Function to get relevant styles for comparison
     function getRelevantStyles(element) {
         const computed = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        
+        // Get dimensions
+        const dimensions = {
+            width: rect.width,
+            height: rect.height,
+            aspectRatio: rect.width / rect.height
+        };
         
         // For Google Shopping cards, include specific styles
         const isShoppingCard = element.hasAttribute('jsaction') && 
-                              element.getAttribute('jsaction').includes('click:trigger.oLMRYb');
+                             element.getAttribute('jsaction').includes('click:trigger.oLMRYb');
+        
+        // Check if element contains an image
+        const hasImage = element.querySelector('img') !== null;
         
         const styles = {
+            // Include dimensions
+            dimensions: dimensions,
+            // Include element type info
+            hasImage: hasImage,
+            // Basic text styles
             color: computed.color,
             fontSize: computed.fontSize,
             fontFamily: computed.fontFamily,
             textDecoration: computed.textDecoration,
-            fontWeight: computed.fontWeight
+            fontWeight: computed.fontWeight,
+            display: computed.display,
+            position: computed.position
         };
         
         if (isShoppingCard) {
@@ -279,11 +297,52 @@ if (!window.multiLinkExtensionLoaded) {
         return styles;
     }
 
-    // Function to compare styles
+    // Function to compare styles with dimension tolerance
     function haveSimilarStyles(style1, style2) {
-        const relevantProperties = Object.keys(style1);
+        // First check if both are images or both are not images
+        if (style1.hasImage !== style2.hasImage) {
+            return false;
+        }
+
+        // Size comparison tolerance (20%)
+        const DIMENSION_TOLERANCE = 0.2;
         
-        return relevantProperties.every(prop => style1[prop] === style2[prop]);
+        // Compare dimensions with tolerance
+        const dim1 = style1.dimensions;
+        const dim2 = style2.dimensions;
+        
+        const widthDiff = Math.abs(dim1.width - dim2.width) / Math.max(dim1.width, dim2.width);
+        const heightDiff = Math.abs(dim1.height - dim2.height) / Math.max(dim1.height, dim2.height);
+        const aspectRatioDiff = Math.abs(dim1.aspectRatio - dim2.aspectRatio) / Math.max(dim1.aspectRatio, dim2.aspectRatio);
+        
+        // If dimensions are too different, return false
+        if (widthDiff > DIMENSION_TOLERANCE || 
+            heightDiff > DIMENSION_TOLERANCE || 
+            aspectRatioDiff > DIMENSION_TOLERANCE) {
+            return false;
+        }
+        
+        // Compare other style properties
+        const styleProps = [
+            'color',
+            'fontSize',
+            'fontFamily',
+            'textDecoration',
+            'fontWeight',
+            'display',
+            'position'
+        ];
+        
+        // If it's a shopping card, add those properties
+        if (style1.backgroundColor) {
+            styleProps.push('backgroundColor', 'padding', 'borderRadius');
+        }
+        
+        return styleProps.every(prop => 
+            style1[prop] === style2[prop] || 
+            // Skip comparison if property doesn't exist in either style
+            (!style1[prop] && !style2[prop])
+        );
     }
 
     // Function to remove all highlights and close buttons
