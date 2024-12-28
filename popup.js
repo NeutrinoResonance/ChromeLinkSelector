@@ -2,6 +2,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlList = document.getElementById('urlList');
     const openAllBtn = document.getElementById('openAllBtn');
     const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const affiliateCheckbox = document.getElementById('affiliateEnabled');
+    const selectedCountDiv = document.getElementById('selectedCount');
+
+    // Load affiliate setting
+    chrome.storage.sync.get(['affiliateEnabled'], (result) => {
+        affiliateCheckbox.checked = result.affiliateEnabled !== false;
+    });
+
+    // Save affiliate setting when changed
+    affiliateCheckbox.addEventListener('change', () => {
+        chrome.storage.sync.set({
+            affiliateEnabled: affiliateCheckbox.checked
+        });
+    });
 
     // Function to update the URL list
     function updateUrlList() {
@@ -46,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 url: url
                             }, () => {
                                 updateUrlList(); // Refresh the list
+                                updateSelectedCount(); // Update selected count
                             });
                         });
 
@@ -58,8 +73,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Update selected count
+    function updateSelectedCount() {
+        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            if (tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, {action: "getSelectedUrls"}, (response) => {
+                    if (response && response.urls) {
+                        const count = response.urls.length;
+                        selectedCountDiv.textContent = count === 1 
+                            ? "1 link selected"
+                            : `${count} links selected`;
+                    }
+                });
+            }
+        });
+    }
+
     // Update list when popup opens
     updateUrlList();
+
+    // Initial count update
+    updateSelectedCount();
 
     // Handle Open All button
     openAllBtn.addEventListener('click', () => {
@@ -68,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     action: "openSelectedLinks"
                 });
+                window.close();
             }
         });
     });
@@ -80,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     action: "deselectAllLinks"
                 }, () => {
                     updateUrlList(); // Refresh the list
+                    updateSelectedCount(); // Update selected count
                 });
             }
         });

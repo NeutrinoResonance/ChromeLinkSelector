@@ -85,6 +85,25 @@
         .deselect-all:hover {
             background: #e53935;
         }
+        .settings {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+        .setting-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .setting-item input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            margin-left: 24px;
+        }
     </style>
 </head>
 <body>
@@ -95,6 +114,15 @@
     <div class="controls">
         <button class="button open-all" id="openAllBtn">Open All</button>
         <button class="button deselect-all" id="deselectAllBtn">Deselect All</button>
+    </div>
+    <div class="settings">
+        <div class="setting-item">
+            <input type="checkbox" id="affiliateEnabled">
+            <label for="affiliateEnabled">Enable affiliate link processing</label>
+        </div>
+        <div class="info-text">
+            When enabled, untagged Amazon links will include our affiliate code
+        </div>
     </div>
     <script src="popup.js"></script>
 </body>

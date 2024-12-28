@@ -308,51 +308,57 @@ if (!window.multiLinkExtensionLoaded) {
             
             // Check if it's an Amazon domain
             if (urlObj.hostname.includes('amazon.')) {
-                const searchParams = new URLSearchParams(urlObj.search);
-                
-                // If there's already an affiliate tag, preserve the original URL
-                if (searchParams.has('tag')) {
-                    return url;
-                }
-                
-                // Add our affiliate tag only if none exists
-                searchParams.append('tag', 'multilink-20');
-                
-                // Clean up the URL path
-                let path = urlObj.pathname;
-                
-                // Handle product pages
-                if (path.includes('/dp/') || path.includes('/gp/product/')) {
-                    // Extract the ASIN (Amazon Standard Identification Number)
-                    const asinMatch = path.match(/(?:\/dp\/|\/gp\/product\/)([A-Z0-9]{10})/);
-                    if (asinMatch) {
-                        const asin = asinMatch[1];
-                        // Simplify to the canonical product URL format
-                        path = `/dp/${asin}`;
-                    }
-                }
-                
-                // Reconstruct the URL
-                return `${urlObj.protocol}//${urlObj.hostname}${path}?${searchParams.toString()}`;
+                // Check if affiliate processing is enabled
+                return new Promise((resolve) => {
+                    chrome.storage.sync.get(['affiliateEnabled'], (result) => {
+                        // If affiliate processing is disabled or there's already a tag, return original URL
+                        if (!result.affiliateEnabled || urlObj.searchParams.has('tag')) {
+                            resolve(url);
+                            return;
+                        }
+
+                        // Add our affiliate tag
+                        const searchParams = new URLSearchParams(urlObj.search);
+                        searchParams.append('tag', 'multilink-20');
+                        
+                        // Clean up the URL path
+                        let path = urlObj.pathname;
+                        
+                        // Handle product pages
+                        if (path.includes('/dp/') || path.includes('/gp/product/')) {
+                            // Extract the ASIN (Amazon Standard Identification Number)
+                            const asinMatch = path.match(/(?:\/dp\/|\/gp\/product\/)([A-Z0-9]{10})/);
+                            if (asinMatch) {
+                                const asin = asinMatch[1];
+                                // Simplify to the canonical product URL format
+                                path = `/dp/${asin}`;
+                            }
+                        }
+                        
+                        // Reconstruct the URL
+                        resolve(`${urlObj.protocol}//${urlObj.hostname}${path}?${searchParams.toString()}`);
+                    });
+                });
             }
             
-            return url;
+            return Promise.resolve(url);
         } catch (e) {
             console.error('Error processing URL:', e);
-            return url;
+            return Promise.resolve(url);
         }
     }
 
     // Function to get all selected URLs
-    function getSelectedUrls() {
+    async function getSelectedUrls() {
         const urls = [];
-        highlightedElements.forEach(element => {
+        for (const element of highlightedElements) {
             const url = getElementUrl(element);
             if (url) {
                 // Process URL before adding to the list
-                urls.push(processUrl(url));
+                const processedUrl = await processUrl(url);
+                urls.push(processedUrl);
             }
-        });
+        }
         return urls;
     }
 

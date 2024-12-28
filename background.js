@@ -1,5 +1,19 @@
-// Create context menu items when extension is installed
-chrome.runtime.onInstalled.addListener(() => {
+// Initialize extension and show onboarding if needed
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    // Set default settings
+    chrome.storage.sync.set({
+      affiliateEnabled: true,
+      onboardingComplete: false
+    }, () => {
+      // Open onboarding page
+      chrome.tabs.create({
+        url: 'onboarding.html'
+      });
+    });
+  }
+
+  // Create context menu items when extension is installed
   chrome.contextMenus.create({
     id: "selectSimilarLinks",
     title: "Select Similar Links",
