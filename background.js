@@ -13,6 +13,12 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 
   chrome.contextMenus.create({
+    id: "selectByRectangle",
+    title: "Select Links by Rectangle",
+    contexts: ["all"]  // Available everywhere since we might want to start drawing anywhere
+  });
+
+  chrome.contextMenus.create({
     id: "openSelectedLinks",
     title: "Open All Selected Links",
     contexts: ["all"]  // Available everywhere since we might have links selected
@@ -41,6 +47,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await chrome.tabs.sendMessage(tab.id, {
         action: info.menuItemId === "selectSimilarLinks" ? "highlightLink" : "highlightSingleLink",
         data: { linkUrl: info.linkUrl }
+      });
+    } else if (info.menuItemId === "selectByRectangle") {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js']
+      });
+
+      await chrome.tabs.sendMessage(tab.id, {
+        action: "startRectangleSelect"
       });
     } else if (info.menuItemId === "openSelectedLinks") {
       await chrome.tabs.sendMessage(tab.id, {

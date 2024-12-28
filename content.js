@@ -222,9 +222,111 @@ if (!window.multiLinkExtensionLoaded) {
         return urls;
     }
 
+    // Rectangle selection variables
+    let isDrawingRectangle = false;
+    let startX = 0;
+    let startY = 0;
+    let selectionDiv = null;
+
+    function createSelectionDiv() {
+        selectionDiv = document.createElement('div');
+        selectionDiv.style.position = 'fixed';
+        selectionDiv.style.border = '2px solid #4CAF50';
+        selectionDiv.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+        selectionDiv.style.pointerEvents = 'none';
+        selectionDiv.style.zIndex = '10000';
+        document.body.appendChild(selectionDiv);
+    }
+
+    function updateSelectionDiv(currentX, currentY) {
+        const left = Math.min(startX, currentX);
+        const top = Math.min(startY, currentY);
+        const width = Math.abs(currentX - startX);
+        const height = Math.abs(currentY - startY);
+        
+        selectionDiv.style.left = left + 'px';
+        selectionDiv.style.top = top + 'px';
+        selectionDiv.style.width = width + 'px';
+        selectionDiv.style.height = height + 'px';
+    }
+
+    function getElementsInRectangle(rect) {
+        const elements = findClickableElements();
+        return elements.filter(element => {
+            const elementRect = element.getBoundingClientRect();
+            return !(elementRect.right < rect.left || 
+                    elementRect.left > rect.right || 
+                    elementRect.bottom < rect.top || 
+                    elementRect.top > rect.bottom);
+        });
+    }
+
+    function handleRectangleSelection(event) {
+        if (!isDrawingRectangle) return;
+        
+        event.preventDefault();
+        updateSelectionDiv(event.clientX, event.clientY);
+    }
+
+    function startRectangleSelection() {
+        document.body.style.cursor = 'crosshair';
+        
+        function handleMouseDown(e) {
+            isDrawingRectangle = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            createSelectionDiv();
+            
+            document.addEventListener('mousemove', handleRectangleSelection);
+            
+            function handleMouseUp(e) {
+                if (!isDrawingRectangle) return;
+                
+                isDrawingRectangle = false;
+                document.body.style.cursor = 'default';
+                
+                // Get the final rectangle
+                const rect = {
+                    left: Math.min(startX, e.clientX),
+                    right: Math.max(startX, e.clientX),
+                    top: Math.min(startY, e.clientY),
+                    bottom: Math.max(startY, e.clientY)
+                };
+                
+                // Find and highlight elements in the rectangle
+                const elementsInRect = getElementsInRectangle(rect);
+                elementsInRect.forEach(element => {
+                    const elementUrl = getElementUrl(element);
+                    if (elementUrl && !selectedUrls.has(elementUrl)) {
+                        element.classList.add('multi-link-highlight');
+                        highlightedElements.add(element);
+                        selectedUrls.add(elementUrl);
+                        addCloseButton(element);
+                    }
+                });
+                
+                // Clean up
+                document.removeEventListener('mousemove', handleRectangleSelection);
+                document.removeEventListener('mouseup', handleMouseUp);
+                document.removeEventListener('mousedown', handleMouseDown);
+                if (selectionDiv) {
+                    selectionDiv.remove();
+                    selectionDiv = null;
+                }
+            }
+            
+            document.addEventListener('mouseup', handleMouseUp, { once: true });
+        }
+        
+        document.addEventListener('mousedown', handleMouseDown, { once: true });
+    }
+
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.action === "highlightLink") {
+        if (request.action === "startRectangleSelect") {
+            startRectangleSelection();
+            sendResponse({ success: true });
+        } else if (request.action === "highlightLink") {
             console.log("Link clicked:", request.data.linkUrl);
             
             // Remove previous highlights
