@@ -257,6 +257,28 @@ if (!window.multiLinkExtensionLoaded) {
                 // Log the results
                 console.log('Found similar links:', highlightedElements.size - 1);
             }
+        } else if (request.action === "highlightSingleLink") {
+            console.log("Single link selected:", request.data.linkUrl);
+            
+            // Remove previous highlights if not holding shift key
+            if (!window.event?.shiftKey) {
+                removeAllHighlights();
+            }
+            
+            const allElements = findClickableElements();
+            const clickedElement = allElements.find(el => 
+                getElementUrl(el) === request.data.linkUrl
+            );
+            
+            if (clickedElement && !selectedUrls.has(request.data.linkUrl)) {
+                clickedElement.classList.add('multi-link-highlight');
+                highlightedElements.add(clickedElement);
+                selectedUrls.add(request.data.linkUrl);
+                addCloseButton(clickedElement);
+                
+                // Scroll the clicked link into view
+                clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         } else if (request.action === "openSelectedLinks") {
             const urls = getSelectedUrls();
             if (urls.length > 0) {

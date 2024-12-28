@@ -7,6 +7,12 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 
   chrome.contextMenus.create({
+    id: "selectSingleLink",
+    title: "Select Only This Link",
+    contexts: ["link"]
+  });
+
+  chrome.contextMenus.create({
     id: "openSelectedLinks",
     title: "Open All Selected Links",
     contexts: ["all"]  // Available everywhere since we might have links selected
@@ -21,7 +27,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "selectSimilarLinks") {
+  if (info.menuItemId === "selectSimilarLinks" || info.menuItemId === "selectSingleLink") {
     console.log("Context menu info:", info);
     
     // Inject content script first if needed
@@ -29,15 +35,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       target: { tabId: tab.id },
       files: ['content.js']
     }).then(() => {
-      // Then send the message
+      // Send message to content script
       chrome.tabs.sendMessage(tab.id, {
-        action: "highlightLink",
-        data: { 
-          linkUrl: info.linkUrl,
-          targetElementId: info.targetElementId
-        }
-      }).catch(err => {
-        console.error("Error sending message:", err);
+        action: info.menuItemId === "selectSimilarLinks" ? "highlightLink" : "highlightSingleLink",
+        data: { linkUrl: info.linkUrl }
       });
     }).catch(err => {
       console.error("Error injecting content script:", err);
