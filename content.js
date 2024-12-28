@@ -85,6 +85,10 @@ if (!window.multiLinkExtensionLoaded) {
                     visibility: visible !important;
                     display: block !important;
                 }
+                .multi-link-preview {
+                    outline: 2px solid #4CAF50 !important;
+                    background-color: rgba(76, 175, 80, 0.1) !important;
+                }
             `;
             
             if (document.head) {
@@ -541,6 +545,30 @@ if (!window.multiLinkExtensionLoaded) {
         }
     });
 
+    // Function to evaluate XPath
+    function evaluateXPath(xpath) {
+        const result = document.evaluate(
+            xpath,
+            document,
+            null,
+            XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+            null
+        );
+        
+        const elements = [];
+        for (let i = 0; i < result.snapshotLength; i++) {
+            elements.push(result.snapshotItem(i));
+        }
+        return elements;
+    }
+
+    // Function to clear preview highlights
+    function clearPreviews() {
+        document.querySelectorAll('.multi-link-preview').forEach(el => {
+            el.classList.remove('multi-link-preview');
+        });
+    }
+
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "startRectangleSelect") {
@@ -631,6 +659,30 @@ if (!window.multiLinkExtensionLoaded) {
                 }
             });
             saveState();
+            sendResponse({ success: true });
+        } else if (request.action === "previewXPathSelection") {
+            clearPreviews();
+            const elements = evaluateXPath(request.xpath);
+            elements.forEach(el => el.classList.add('multi-link-preview'));
+            sendResponse({ matchCount: elements.length });
+        } else if (request.action === "finalizeXPathSelection") {
+            const elements = evaluateXPath(request.xpath);
+            clearPreviews();
+            
+            elements.forEach(element => {
+                const elementUrl = getElementUrl(element);
+                if (elementUrl && !selectedUrls.has(elementUrl)) {
+                    element.classList.add('multi-link-highlight');
+                    highlightedElements.add(element);
+                    selectedUrls.add(elementUrl);
+                    addCloseButton(element);
+                }
+            });
+            
+            saveState();
+            sendResponse({ success: true });
+        } else if (request.action === "cancelXPathSelection") {
+            clearPreviews();
             sendResponse({ success: true });
         }
         

@@ -21,6 +21,12 @@ chrome.runtime.onInstalled.addListener((details) => {
   });
 
   chrome.contextMenus.create({
+    id: "selectByAttributes",
+    title: "Select by Attributes",
+    contexts: ["link"]
+  });
+
+  chrome.contextMenus.create({
     id: "selectSingleLink",
     title: "Select Individual Link",
     contexts: ["link"]
@@ -44,6 +50,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     contexts: ["all"]
   });
 });
+
+// Store the target element temporarily
+let targetElement = null;
 
 // Handle keyboard commands
 chrome.commands.onCommand.addListener(async (command) => {
@@ -73,6 +82,17 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await chrome.tabs.sendMessage(tab.id, {
         action: info.menuItemId === "selectSimilarLinks" ? "highlightLink" : "highlightSingleLink",
         data: { linkUrl: info.linkUrl }
+      });
+    } else if (info.menuItemId === "selectByAttributes") {
+      // Store the clicked element's URL
+      targetElement = info.linkUrl;
+      
+      // Open the attribute selector popup
+      chrome.windows.create({
+        url: 'attribute-selector.html',
+        type: 'popup',
+        width: 800,
+        height: 600
       });
     } else if (info.menuItemId === "selectByRectangle") {
       await chrome.scripting.executeScript({
@@ -109,13 +129,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// Listen for connection errors
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Background script received message:", message);
+// Handle messages from popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("Background script received message:", request);
   
+  if (request.action === "getTargetElement") {
+    sendResponse({ element: targetElement });
+    targetElement = null; // Clear after use
+  }
+
   // Handle opening multiple URLs
-  if (message.action === "openUrls") {
-    message.urls.forEach(url => {
+  if (request.action === "openUrls") {
+    request.urls.forEach(url => {
       chrome.tabs.create({ url: url });
     });
   }
