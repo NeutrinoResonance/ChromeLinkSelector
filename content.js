@@ -549,8 +549,6 @@ if (!window.multiLinkExtensionLoaded) {
         } else if (request.action === "highlightLink") {
             console.log("Link clicked:", request.data.linkUrl);
             
-            removeAllHighlights(false);
-            
             const allElements = findClickableElements();
             const clickedElement = allElements.find(el => 
                 getElementUrl(el) === request.data.linkUrl
