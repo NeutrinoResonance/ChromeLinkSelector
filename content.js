@@ -257,6 +257,7 @@ if (!window.multiLinkExtensionLoaded) {
                 // Log the results
                 console.log('Found similar links:', highlightedElements.size - 1);
             }
+            sendResponse({ success: true });
         } else if (request.action === "highlightSingleLink") {
             console.log("Single link selected:", request.data.linkUrl);
             
@@ -274,6 +275,7 @@ if (!window.multiLinkExtensionLoaded) {
                 // Scroll the clicked link into view
                 clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+            sendResponse({ success: true });
         } else if (request.action === "openSelectedLinks") {
             const urls = getSelectedUrls();
             if (urls.length > 0) {
@@ -282,9 +284,10 @@ if (!window.multiLinkExtensionLoaded) {
                     urls: urls
                 });
             }
+            sendResponse({ success: true });
         } else if (request.action === "deselectAllLinks") {
             removeAllHighlights();
-            if (sendResponse) sendResponse();
+            sendResponse({ success: true });
         } else if (request.action === "getSelectedUrls") {
             sendResponse({ urls: getSelectedUrls() });
         } else if (request.action === "removeUrl") {
@@ -298,7 +301,7 @@ if (!window.multiLinkExtensionLoaded) {
                     selectedUrls.delete(request.url);
                 }
             });
-            if (sendResponse) sendResponse();
+            sendResponse({ success: true });
         }
         
         // Required for async sendResponse
