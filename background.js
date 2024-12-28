@@ -26,31 +26,45 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "selectSimilarLinks" || info.menuItemId === "selectSingleLink") {
-    console.log("Context menu info:", info);
-    
-    // Inject content script first if needed
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content.js']
-    }).then(() => {
-      // Send message to content script
-      chrome.tabs.sendMessage(tab.id, {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  try {
+    if (info.menuItemId === "selectSimilarLinks" || info.menuItemId === "selectSingleLink") {
+      console.log("Context menu info:", info);
+      
+      // Inject content script first if needed
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js']
+      });
+
+      // Send message to content script and wait for response
+      await chrome.tabs.sendMessage(tab.id, {
         action: info.menuItemId === "selectSimilarLinks" ? "highlightLink" : "highlightSingleLink",
         data: { linkUrl: info.linkUrl }
       });
-    }).catch(err => {
-      console.error("Error injecting content script:", err);
-    });
-  } else if (info.menuItemId === "openSelectedLinks") {
-    chrome.tabs.sendMessage(tab.id, {
-      action: "openSelectedLinks"
-    });
-  } else if (info.menuItemId === "deselectAllLinks") {
-    chrome.tabs.sendMessage(tab.id, {
-      action: "deselectAllLinks"
-    });
+    } else if (info.menuItemId === "openSelectedLinks") {
+      await chrome.tabs.sendMessage(tab.id, {
+        action: "openSelectedLinks"
+      });
+    } else if (info.menuItemId === "deselectAllLinks") {
+      await chrome.tabs.sendMessage(tab.id, {
+        action: "deselectAllLinks"
+      });
+    }
+  } catch (err) {
+    console.error("Error in context menu handler:", err);
+    // If the error is about the content script not being ready, try to inject it
+    if (err.message.includes("Could not establish connection")) {
+      console.log("Attempting to reinject content script...");
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+      } catch (injectErr) {
+        console.error("Failed to inject content script:", injectErr);
+      }
+    }
   }
 });
 
