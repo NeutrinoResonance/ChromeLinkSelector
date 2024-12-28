@@ -106,20 +106,109 @@ if (!window.multiLinkExtensionLoaded) {
     let highlightedElements = new Set();
     let selectedUrls = new Set();
 
+    // State history for undo/redo
+    let stateHistory = [];
+    let currentStateIndex = -1;
+    const MAX_HISTORY = 50; // Maximum number of states to keep
+
+    function saveState() {
+        // Create a new state snapshot
+        const state = {
+            selectedUrls: new Set([...selectedUrls]),
+            highlightedElements: new Set([...highlightedElements]),
+            timestamp: Date.now()
+        };
+
+        // If we're not at the end of the history, remove future states
+        if (currentStateIndex < stateHistory.length - 1) {
+            stateHistory = stateHistory.slice(0, currentStateIndex + 1);
+        }
+
+        // Add new state
+        stateHistory.push(state);
+        currentStateIndex++;
+
+        // Limit history size
+        if (stateHistory.length > MAX_HISTORY) {
+            stateHistory.shift();
+            currentStateIndex--;
+        }
+    }
+
+    function restoreState(state) {
+        // Clear current highlights
+        removeAllHighlights(false); // Don't save state when clearing
+
+        // Restore highlights from state
+        state.selectedUrls.forEach(url => {
+            const elements = findClickableElements();
+            const element = elements.find(el => getElementUrl(el) === url);
+            if (element) {
+                element.classList.add('multi-link-highlight');
+                highlightedElements.add(element);
+                selectedUrls.add(url);
+                addCloseButton(element);
+            }
+        });
+    }
+
+    function undo() {
+        if (currentStateIndex > 0) {
+            currentStateIndex--;
+            restoreState(stateHistory[currentStateIndex]);
+            return true;
+        }
+        return false;
+    }
+
+    function redo() {
+        if (currentStateIndex < stateHistory.length - 1) {
+            currentStateIndex++;
+            restoreState(stateHistory[currentStateIndex]);
+            return true;
+        }
+        return false;
+    }
+
     // Function to add close button to a link
-    function addCloseButton(link) {
-        const closeBtn = document.createElement('div');
+    function addCloseButton(element) {
+        const existingBtn = element.querySelector('.multi-link-close');
+        if (existingBtn) return;
+
+        const closeBtn = document.createElement('button');
         closeBtn.className = 'multi-link-close';
-        closeBtn.textContent = '×';
+        closeBtn.innerHTML = '×';
+        closeBtn.style.position = 'absolute';
+        closeBtn.style.right = '-10px';
+        closeBtn.style.top = '-10px';
+        closeBtn.style.width = '20px';
+        closeBtn.style.height = '20px';
+        closeBtn.style.borderRadius = '50%';
+        closeBtn.style.border = 'none';
+        closeBtn.style.backgroundColor = '#ff5252';
+        closeBtn.style.color = 'white';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.zIndex = '10000';
+        closeBtn.style.display = 'flex';
+        closeBtn.style.alignItems = 'center';
+        closeBtn.style.justifyContent = 'center';
+        closeBtn.style.fontSize = '16px';
+        closeBtn.style.fontWeight = 'bold';
+        closeBtn.style.padding = '0';
+        closeBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+
         closeBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            link.classList.remove('multi-link-highlight', 'multi-link-similar');
-            highlightedElements.delete(link);
-            selectedUrls.delete(getElementUrl(link));
+            element.classList.remove('multi-link-highlight', 'multi-link-similar');
             closeBtn.remove();
+            highlightedElements.delete(element);
+            selectedUrls.delete(getElementUrl(element));
+            saveState();
         });
-        link.appendChild(closeBtn);
+
+        element.style.position = 'relative';
+        element.appendChild(closeBtn);
     }
 
     // Function to check if an element is truly hidden
@@ -198,16 +287,18 @@ if (!window.multiLinkExtensionLoaded) {
     }
 
     // Function to remove all highlights and close buttons
-    function removeAllHighlights() {
+    function removeAllHighlights(saveStateAfter = true) {
         highlightedElements.forEach(element => {
             element.classList.remove('multi-link-highlight', 'multi-link-similar');
             const closeBtn = element.querySelector('.multi-link-close');
-            if (closeBtn) {
-                closeBtn.remove();
-            }
+            if (closeBtn) closeBtn.remove();
         });
         highlightedElements.clear();
         selectedUrls.clear();
+        
+        if (saveStateAfter) {
+            saveState();
+        }
     }
 
     // Function to get all selected URLs
@@ -313,6 +404,7 @@ if (!window.multiLinkExtensionLoaded) {
                     selectionDiv.remove();
                     selectionDiv = null;
                 }
+                saveState();
             }
             
             document.addEventListener('mouseup', handleMouseUp, { once: true });
@@ -320,6 +412,26 @@ if (!window.multiLinkExtensionLoaded) {
         
         document.addEventListener('mousedown', handleMouseDown, { once: true });
     }
+
+    // Add keyboard shortcut listener
+    document.addEventListener('keydown', (e) => {
+        // Check if the target is an input field
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Undo: Cmd+Z (Mac) or Ctrl+Z (Windows)
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+        }
+        // Redo: Cmd+Shift+Z (Mac) or Ctrl+Y (Windows)
+        else if (((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z') || 
+                 ((e.ctrlKey) && e.key === 'y')) {
+            e.preventDefault();
+            redo();
+        }
+    });
 
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -329,8 +441,7 @@ if (!window.multiLinkExtensionLoaded) {
         } else if (request.action === "highlightLink") {
             console.log("Link clicked:", request.data.linkUrl);
             
-            // Remove previous highlights
-            removeAllHighlights();
+            removeAllHighlights(false);
             
             const allElements = findClickableElements();
             const clickedElement = allElements.find(el => 
@@ -353,11 +464,9 @@ if (!window.multiLinkExtensionLoaded) {
                     }
                 });
                 
-                // Scroll the clicked link into view
                 clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                // Log the results
                 console.log('Found similar links:', highlightedElements.size - 1);
+                saveState();
             }
             sendResponse({ success: true });
         } else if (request.action === "highlightSingleLink") {
@@ -373,11 +482,16 @@ if (!window.multiLinkExtensionLoaded) {
                 highlightedElements.add(clickedElement);
                 selectedUrls.add(request.data.linkUrl);
                 addCloseButton(clickedElement);
-                
-                // Scroll the clicked link into view
                 clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                saveState();
             }
             sendResponse({ success: true });
+        } else if (request.action === "undo") {
+            const success = undo();
+            sendResponse({ success });
+        } else if (request.action === "redo") {
+            const success = redo();
+            sendResponse({ success });
         } else if (request.action === "openSelectedLinks") {
             const urls = getSelectedUrls();
             if (urls.length > 0) {
@@ -388,12 +502,11 @@ if (!window.multiLinkExtensionLoaded) {
             }
             sendResponse({ success: true });
         } else if (request.action === "deselectAllLinks") {
-            removeAllHighlights();
+            removeAllHighlights(true);
             sendResponse({ success: true });
         } else if (request.action === "getSelectedUrls") {
             sendResponse({ urls: getSelectedUrls() });
         } else if (request.action === "removeUrl") {
-            // Find and remove highlight from specific URL
             highlightedElements.forEach(element => {
                 if (getElementUrl(element) === request.url) {
                     element.classList.remove('multi-link-highlight', 'multi-link-similar');
@@ -403,10 +516,10 @@ if (!window.multiLinkExtensionLoaded) {
                     selectedUrls.delete(request.url);
                 }
             });
+            saveState();
             sendResponse({ success: true });
         }
         
-        // Required for async sendResponse
         return true;
     });
 }

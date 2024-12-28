@@ -31,5 +31,21 @@
     "16": "images/icon16.png",
     "48": "images/icon48.png",
     "128": "images/icon128.png"
+  },
+  "commands": {
+    "undo": {
+      "suggested_key": {
+        "default": "Ctrl+Z",
+        "mac": "Command+Z"
+      },
+      "description": "Undo last action"
+    },
+    "redo": {
+      "suggested_key": {
+        "default": "Ctrl+Y",
+        "mac": "Command+Shift+Z"
+      },
+      "description": "Redo last undone action"
+    }
   }
 }

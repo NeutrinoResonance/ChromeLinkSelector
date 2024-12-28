@@ -31,6 +31,18 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Handle keyboard commands
+chrome.commands.onCommand.addListener(async (command) => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+      await chrome.tabs.sendMessage(tab.id, { action: command });
+    }
+  } catch (err) {
+    console.error("Error handling keyboard command:", err);
+  }
+});
+
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
