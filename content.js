@@ -526,13 +526,16 @@ if (!window.multiLinkExtensionLoaded) {
                 getElementUrl(el) === request.data.linkUrl
             );
             
-            if (clickedElement && !selectedUrls.has(request.data.linkUrl)) {
-                clickedElement.classList.add('multi-link-highlight');
-                highlightedElements.add(clickedElement);
-                selectedUrls.add(request.data.linkUrl);
-                addCloseButton(clickedElement);
-                clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                saveState();
+            if (clickedElement) {
+                const elementUrl = request.data.linkUrl;
+                if (!selectedUrls.has(elementUrl)) {
+                    clickedElement.classList.add('multi-link-highlight');
+                    highlightedElements.add(clickedElement);
+                    selectedUrls.add(elementUrl);
+                    addCloseButton(clickedElement);
+                    clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    saveState();
+                }
             }
             sendResponse({ success: true });
         } else if (request.action === "undo") {
@@ -542,19 +545,24 @@ if (!window.multiLinkExtensionLoaded) {
             const success = redo();
             sendResponse({ success });
         } else if (request.action === "openSelectedLinks") {
-            const urls = getSelectedUrls();
-            if (urls.length > 0) {
-                chrome.runtime.sendMessage({
-                    action: "openUrls",
-                    urls: urls
-                });
-            }
-            sendResponse({ success: true });
+            getSelectedUrls().then(urls => {
+                if (urls.length > 0) {
+                    chrome.runtime.sendMessage({
+                        action: "openUrls",
+                        urls: urls
+                    });
+                }
+                sendResponse({ success: true });
+            });
+            return true; // Keep the message channel open for async response
         } else if (request.action === "deselectAllLinks") {
             removeAllHighlights(true);
             sendResponse({ success: true });
         } else if (request.action === "getSelectedUrls") {
-            sendResponse({ urls: getSelectedUrls() });
+            getSelectedUrls().then(urls => {
+                sendResponse({ urls: urls });
+            });
+            return true; // Keep the message channel open for async response
         } else if (request.action === "removeUrl") {
             highlightedElements.forEach(element => {
                 if (getElementUrl(element) === request.url) {
