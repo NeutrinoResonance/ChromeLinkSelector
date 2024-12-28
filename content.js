@@ -425,6 +425,40 @@ if (!window.multiLinkExtensionLoaded) {
         return urls;
     }
 
+    // Function to get element information including HTML structure
+    function getElementInfo(element) {
+        function getElementPath(el, maxParents = 2) {
+            const path = [];
+            let current = el;
+            let count = 0;
+            
+            while (current && count < maxParents) {
+                const elementInfo = {
+                    tagName: current.tagName.toLowerCase(),
+                    attributes: {},
+                    innerHTML: current.innerHTML,
+                    outerHTML: current.outerHTML
+                };
+                
+                // Get all attributes
+                Array.from(current.attributes).forEach(attr => {
+                    elementInfo.attributes[attr.name] = attr.value;
+                });
+                
+                path.unshift(elementInfo);
+                current = current.parentElement;
+                count++;
+            }
+            
+            return path;
+        }
+        
+        return {
+            elementPath: getElementPath(element),
+            url: getElementUrl(element)
+        };
+    }
+
     // Rectangle selection variables
     let isDrawingRectangle = false;
     let startX = 0;
@@ -684,6 +718,17 @@ if (!window.multiLinkExtensionLoaded) {
         } else if (request.action === "cancelXPathSelection") {
             clearPreviews();
             sendResponse({ success: true });
+        } else if (request.action === "getElementInfo") {
+            const allElements = findClickableElements();
+            const targetElement = allElements.find(el => 
+                getElementUrl(el) === request.data.linkUrl
+            );
+            
+            if (targetElement) {
+                sendResponse({ 
+                    elementInfo: getElementInfo(targetElement)
+                });
+            }
         }
         
         return true;

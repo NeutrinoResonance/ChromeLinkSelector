@@ -52,7 +52,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 // Store the target element temporarily
-let targetElement = null;
+let targetElementInfo = null;
 
 // Handle keyboard commands
 chrome.commands.onCommand.addListener(async (command) => {
@@ -84,15 +84,23 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         data: { linkUrl: info.linkUrl }
       });
     } else if (info.menuItemId === "selectByAttributes") {
-      // Store the clicked element's URL
-      targetElement = info.linkUrl;
-      
-      // Open the attribute selector popup
-      chrome.windows.create({
-        url: 'attribute-selector.html',
-        type: 'popup',
-        width: 800,
-        height: 600
+      // Get element info from content script
+      chrome.tabs.sendMessage(tab.id, {
+        action: "getElementInfo",
+        data: {
+          linkUrl: info.linkUrl
+        }
+      }, (response) => {
+        if (response && response.elementInfo) {
+          targetElementInfo = response.elementInfo;
+          // Open the attribute selector popup
+          chrome.windows.create({
+            url: 'attribute-selector.html',
+            type: 'popup',
+            width: 800,
+            height: 600
+          });
+        }
       });
     } else if (info.menuItemId === "selectByRectangle") {
       await chrome.scripting.executeScript({
@@ -134,8 +142,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("Background script received message:", request);
   
   if (request.action === "getTargetElement") {
-    sendResponse({ element: targetElement });
-    targetElement = null; // Clear after use
+    sendResponse({ elementInfo: targetElementInfo });
+    targetElementInfo = null; // Clear after use
   }
 
   // Handle opening multiple URLs

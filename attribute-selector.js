@@ -1,5 +1,5 @@
 let selectedAttributes = new Set();
-let currentElement = null;
+let currentElementInfo = null;
 let currentExpression = '';
 
 // Function to escape special characters in attribute values
@@ -7,15 +7,26 @@ function escapeValue(value) {
     return value.replace(/'/g, "\\'");
 }
 
+// Function to escape HTML
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // Function to generate XPath from selected attributes
 function generateXPath() {
-    if (!currentElement || selectedAttributes.size === 0) return '//a';
+    if (!currentElementInfo || selectedAttributes.size === 0) return '//a';
     
     const conditions = [];
+    const targetElement = currentElementInfo.elementPath[currentElementInfo.elementPath.length - 1];
+    
     selectedAttributes.forEach(attr => {
-        const value = currentElement.getAttribute(attr);
+        const value = targetElement.attributes[attr];
         if (value) {
-            // Handle class attribute specially
             if (attr === 'class') {
                 const classes = value.split(' ');
                 classes.forEach(cls => {
@@ -32,6 +43,51 @@ function generateXPath() {
     return conditions.length > 0 
         ? `//a[${conditions.join(' and ')}]`
         : '//a';
+}
+
+// Function to create collapsible DOM viewer
+function createDOMViewer(elementInfo) {
+    const container = document.querySelector('.dom-viewer');
+    container.innerHTML = '';
+    
+    function createElementView(elementData, depth = 0) {
+        const wrapper = document.createElement('div');
+        wrapper.style.marginLeft = `${depth * 20}px`;
+        
+        const content = document.createElement('div');
+        content.innerHTML = `<span class="tag">&lt;${elementData.tagName}</span>`;
+        
+        // Add attributes
+        Object.entries(elementData.attributes).forEach(([name, value]) => {
+            const attrSpan = document.createElement('span');
+            attrSpan.className = `attribute${selectedAttributes.has(name) ? ' selected' : ''}`;
+            attrSpan.setAttribute('data-attr', name);
+            attrSpan.innerHTML = ` ${name}="<span class="value">${escapeHtml(value)}</span>"`;
+            
+            attrSpan.addEventListener('click', () => {
+                if (selectedAttributes.has(name)) {
+                    selectedAttributes.delete(name);
+                    attrSpan.classList.remove('selected');
+                } else {
+                    selectedAttributes.add(name);
+                    attrSpan.classList.add('selected');
+                }
+                updatePreview();
+            });
+            
+            content.appendChild(attrSpan);
+        });
+        
+        content.innerHTML += '<span class="tag">&gt;</span>';
+        wrapper.appendChild(content);
+        
+        return wrapper;
+    }
+    
+    // Create view for each element in the path
+    elementInfo.elementPath.forEach((el, index) => {
+        container.appendChild(createElementView(el, index));
+    });
 }
 
 // Function to update preview
@@ -53,80 +109,13 @@ function updatePreview() {
     });
 }
 
-// Function to create collapsible DOM viewer
-function createDOMViewer(element) {
-    const container = document.querySelector('.dom-viewer');
-    container.innerHTML = '';
-    
-    function createElementView(el, depth = 0) {
-        const wrapper = document.createElement('div');
-        wrapper.style.marginLeft = `${depth * 20}px`;
-        
-        const content = document.createElement('div');
-        content.innerHTML = `<span class="tag">${el.tagName.toLowerCase()}</span>`;
-        
-        // Add attributes
-        const attributes = Array.from(el.attributes);
-        if (attributes.length > 0) {
-            attributes.forEach(attr => {
-                const attrSpan = document.createElement('span');
-                attrSpan.className = `attribute${selectedAttributes.has(attr.name) ? ' selected' : ''}`;
-                attrSpan.setAttribute('data-attr', attr.name);
-                attrSpan.innerHTML = ` ${attr.name}="<span class="value">${attr.value}</span>"`;
-                
-                attrSpan.addEventListener('click', () => {
-                    if (selectedAttributes.has(attr.name)) {
-                        selectedAttributes.delete(attr.name);
-                        attrSpan.classList.remove('selected');
-                    } else {
-                        selectedAttributes.add(attr.name);
-                        attrSpan.classList.add('selected');
-                    }
-                    updatePreview();
-                });
-                
-                content.appendChild(attrSpan);
-            });
-        }
-        
-        wrapper.appendChild(content);
-        
-        // Add children if any
-        if (el.children.length > 0) {
-            const childrenContainer = document.createElement('div');
-            childrenContainer.className = 'children';
-            Array.from(el.children).forEach(child => {
-                childrenContainer.appendChild(createElementView(child, depth + 1));
-            });
-            wrapper.appendChild(childrenContainer);
-        }
-        
-        return wrapper;
-    }
-    
-    // Get parent elements up to 2 levels
-    let parent = element;
-    const parents = [element];
-    for (let i = 0; i < 2; i++) {
-        if (parent.parentElement) {
-            parent = parent.parentElement;
-            parents.unshift(parent);
-        }
-    }
-    
-    // Create view for each parent
-    parents.forEach((el, index) => {
-        container.appendChild(createElementView(el, index));
-    });
-}
-
 // Initialize the popup
 document.addEventListener('DOMContentLoaded', () => {
     // Get the target element from the background script
     chrome.runtime.sendMessage({ action: "getTargetElement" }, (response) => {
-        if (response && response.element) {
-            currentElement = response.element;
-            createDOMViewer(currentElement);
+        if (response && response.elementInfo) {
+            currentElementInfo = response.elementInfo;
+            createDOMViewer(currentElementInfo);
         }
     });
     
