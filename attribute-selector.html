@@ -28,10 +28,12 @@
             margin: 10px 0;
             max-height: 300px;
             overflow: auto;
+            line-height: 1.5;
         }
 
         .tag {
             color: #569cd6;
+            user-select: none;
         }
 
         .attribute {
@@ -39,7 +41,10 @@
             cursor: pointer;
             padding: 2px 4px;
             border-radius: 3px;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            display: inline-block;
+            margin: 0 2px;
+            user-select: none;
         }
 
         .attribute:hover {
@@ -51,14 +56,12 @@
             outline: 1px solid #9cdcfe;
         }
 
-        .value {
-            color: #ce9178;
+        .attr-name {
+            color: #9cdcfe;
         }
 
-        .collapse-btn {
-            cursor: pointer;
-            color: #808080;
-            user-select: none;
+        .value {
+            color: #ce9178;
         }
 
         .expression {
@@ -68,6 +71,13 @@
             border-radius: 4px;
             margin: 15px 0;
             font-family: monospace;
+            min-height: 20px;
+        }
+
+        .match-count {
+            margin: 10px 0;
+            color: #666;
+            font-size: 14px;
         }
 
         .controls {
@@ -111,19 +121,6 @@
 
         .cancel-btn:hover {
             background: #e0e0e0;
-        }
-
-        .match-count {
-            margin: 10px 0;
-            color: #666;
-        }
-
-        .indent {
-            margin-left: 20px;
-        }
-
-        .hidden {
-            display: none;
         }
     </style>
 </head>

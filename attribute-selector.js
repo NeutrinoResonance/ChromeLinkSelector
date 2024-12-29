@@ -62,9 +62,26 @@ function createDOMViewer(elementInfo) {
             const attrSpan = document.createElement('span');
             attrSpan.className = `attribute${selectedAttributes.has(name) ? ' selected' : ''}`;
             attrSpan.setAttribute('data-attr', name);
-            attrSpan.innerHTML = ` ${name}="<span class="value">${escapeHtml(value)}</span>"`;
             
-            attrSpan.addEventListener('click', () => {
+            // Create separate spans for attribute name and value
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'attr-name';
+            nameSpan.textContent = ` ${name}`;
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'value';
+            valueSpan.textContent = `="${escapeHtml(value)}"`;
+            
+            attrSpan.appendChild(nameSpan);
+            attrSpan.appendChild(valueSpan);
+            
+            // Add click handler to the entire attribute span
+            attrSpan.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Attribute clicked:', name); // Debug log
+                
                 if (selectedAttributes.has(name)) {
                     selectedAttributes.delete(name);
                     attrSpan.classList.remove('selected');
@@ -72,6 +89,11 @@ function createDOMViewer(elementInfo) {
                     selectedAttributes.add(name);
                     attrSpan.classList.add('selected');
                 }
+                
+                // Debug logs
+                console.log('Selected attributes:', Array.from(selectedAttributes));
+                console.log('Current element info:', currentElementInfo);
+                
                 updatePreview();
             });
             
@@ -93,7 +115,10 @@ function createDOMViewer(elementInfo) {
 // Function to update preview
 function updatePreview() {
     currentExpression = generateXPath();
-    document.querySelector('.expression').textContent = currentExpression;
+    console.log('Generated XPath:', currentExpression); // Debug log
+    
+    const expressionElement = document.querySelector('.expression');
+    expressionElement.textContent = currentExpression;
     
     // Send message to content script to update preview
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
@@ -116,14 +141,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (response && response.elementInfo) {
             currentElementInfo = response.elementInfo;
             createDOMViewer(currentElementInfo);
+            
+            // Debug log
+            console.log('Received element info:', currentElementInfo);
         }
     });
     
     // Handle preview button
-    document.querySelector('.preview-btn').addEventListener('click', updatePreview);
+    document.querySelector('.preview-btn').addEventListener('click', () => {
+        console.log('Preview button clicked'); // Debug log
+        updatePreview();
+    });
     
     // Handle finalize button
     document.querySelector('.finalize-btn').addEventListener('click', () => {
+        console.log('Finalize button clicked'); // Debug log
         if (currentExpression) {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, {
