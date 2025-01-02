@@ -217,88 +217,195 @@ if (!window.multiLinkExtensionLoaded) {
 
     // Function to check if an element is truly hidden
     function isElementTrulyHidden(element) {
+        if (!element) return true;
+        
         const style = window.getComputedStyle(element);
         
-        // Check basic visibility
-        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-            return true;
+        // Check if the element or any parent is hidden
+        let current = element;
+        while (current && current !== document) {
+            const currentStyle = window.getComputedStyle(current);
+            if (currentStyle.display === 'none' || 
+                currentStyle.visibility === 'hidden' || 
+                currentStyle.opacity === '0' ||
+                (currentStyle.height === '0px' && currentStyle.overflow === 'hidden')) {
+                return true;
+            }
+            current = current.parentElement;
         }
-
-        // Check if element has size
+        
+        // Check if element is outside viewport
         const rect = element.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
             return true;
         }
-
-        // Check if any parent element hides this element
-        let parent = element.parentElement;
-        while (parent) {
-            const parentStyle = window.getComputedStyle(parent);
-            if (parentStyle.display === 'none' || 
-                parentStyle.visibility === 'hidden' || 
-                parentStyle.opacity === '0') {
-                return true;
-            }
-            parent = parent.parentElement;
-        }
-
+        
         return false;
     }
 
-    // Function to find all clickable elements
-    function findClickableElements() {
-        // Get all links that aren't truly hidden
-        return Array.from(document.getElementsByTagName('a'))
-            .filter(link => !isElementTrulyHidden(link));
+    // Function to normalize URLs for comparison
+    function normalizeUrl(url) {
+        try {
+            if (!url) return null;
+            
+            // Handle relative URLs
+            if (!url.startsWith('http')) {
+                const a = document.createElement('a');
+                a.href = url;
+                url = a.href;
+            }
+
+            // Create URL object to parse components
+            const urlObj = new URL(url);
+            
+            // For Amazon URLs, only keep the main path and search params
+            if (urlObj.hostname.includes('amazon.com')) {
+                // Extract product ID or search query
+                const pathParts = urlObj.pathname.split('/').filter(p => p);
+                if (pathParts.includes('dp')) {
+                    const productIndex = pathParts.indexOf('dp');
+                    return `https://www.amazon.com/dp/${pathParts[productIndex + 1]}`;
+                } else if (pathParts.includes('s')) {
+                    // For search URLs, keep the search query
+                    return `https://www.amazon.com/${pathParts.join('/')}${urlObj.search}`;
+                }
+            }
+            
+            // For other URLs, normalize by removing tracking parameters
+            const cleanUrl = new URL(url);
+            ['utm_source', 'utm_medium', 'utm_campaign', 'ref', 'gclid'].forEach(param => {
+                cleanUrl.searchParams.delete(param);
+            });
+            return decodeURIComponent(cleanUrl.toString()).replace(/\/$/, '');
+        } catch (e) {
+            console.error('Error normalizing URL:', e, url);
+            return url;
+        }
     }
 
     // Function to get element's target URL
     function getElementUrl(element) {
-        return element.href || null;
-    }
-
-    // Function to get relevant styles for comparison
-    function getRelevantStyles(element) {
-        const computed = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
+        if (!element) return null;
         
-        // Get dimensions
-        const dimensions = {
-            width: rect.width,
-            height: rect.height,
-            aspectRatio: rect.width / rect.height
-        };
+        // Get all possible URL sources
+        const sources = [
+            element.href,
+            element.getAttribute('href'),
+            element.getAttribute('data-url'),
+            element.getAttribute('data-href'),
+            element.formAction
+        ];
         
-        // For Google Shopping cards, include specific styles
-        const isShoppingCard = element.hasAttribute('jsaction') && 
-                             element.getAttribute('jsaction').includes('click:trigger.oLMRYb');
-        
-        // Check if element contains an image
-        const hasImage = element.querySelector('img') !== null;
-        
-        const styles = {
-            // Include dimensions
-            dimensions: dimensions,
-            // Include element type info
-            hasImage: hasImage,
-            // Basic text styles
-            color: computed.color,
-            fontSize: computed.fontSize,
-            fontFamily: computed.fontFamily,
-            textDecoration: computed.textDecoration,
-            fontWeight: computed.fontWeight,
-            display: computed.display,
-            position: computed.position
-        };
-        
-        if (isShoppingCard) {
-            // Add shopping-specific styles
-            styles.backgroundColor = computed.backgroundColor;
-            styles.padding = computed.padding;
-            styles.borderRadius = computed.borderRadius;
+        // Check onclick attribute for URLs
+        const onclick = element.getAttribute('onclick');
+        if (onclick) {
+            const urlMatch = onclick.match(/(?:window\.location\.href|window\.location|location\.href)\s*=\s*['"]([^'"]+)['"]/);
+            if (urlMatch) {
+                sources.push(urlMatch[1]);
+            }
         }
         
-        return styles;
+        // Check nested elements recursively
+        const nestedElements = element.querySelectorAll('a[href], [data-url]');
+        nestedElements.forEach(nested => {
+            sources.push(nested.href, nested.getAttribute('href'), nested.getAttribute('data-url'));
+        });
+        
+        // Find first valid URL
+        const url = sources.find(s => s && typeof s === 'string' && s.includes('://'));
+        if (url) {
+            const normalized = normalizeUrl(url);
+            console.log(`Found URL for element ${element.tagName}:`, {
+                original: url,
+                normalized
+            });
+            return normalized;
+        }
+        return null;
+    }
+
+    // Function to find clickable elements
+    function findClickableElements() {
+        console.log("Finding clickable elements...");
+        
+        // Get all potentially clickable elements with broader selectors
+        const selectors = [
+            'a[href]',
+            '[role="link"]',
+            '[onclick]',
+            '[data-url]',
+            '[href]',
+            'button',
+            'input[type="button"]',
+            'input[type="submit"]',
+            '.clickable',
+            '[class*="link"]',
+            '[class*="btn"]',
+            '[tabindex="0"]',
+            // Add common link-like class patterns
+            '[class*="card"]',
+            '[class*="product"]',
+            'div[jscontroller]' // For Google-specific elements
+        ];
+        
+        const elements = document.querySelectorAll(selectors.join(','));
+        console.log(`Found ${elements.length} potential elements`);
+        
+        // Filter for visible elements with URLs
+        const visibleElements = Array.from(elements).filter(element => {
+            if (isElementTrulyHidden(element)) {
+                console.log(`Skipping hidden element: ${element.tagName}`);
+                return false;
+            }
+            
+            const url = getElementUrl(element);
+            if (!url) {
+                console.log(`No URL found for element: ${element.tagName}`);
+                return false;
+            }
+            
+            console.log(`Found visible element: ${element.tagName}, URL: ${url}`);
+            return true;
+        });
+        
+        console.log(`Found ${visibleElements.length} visible elements with URLs`);
+        return visibleElements;
+    }
+
+    // Function to get element information including HTML structure
+    function getElementInfo(element) {
+        console.log("Getting element info for:", element);
+        if (!element) {
+            console.error("getElementInfo: element is null");
+            return null;
+        }
+
+        // Get the path from root to the element
+        let elementPath = [];
+        let current = element;
+        
+        while (current) {
+            const elementInfo = {
+                tagName: current.tagName.toLowerCase(),
+                attributes: {}
+            };
+            
+            // Get all attributes
+            for (const attr of current.attributes) {
+                elementInfo.attributes[attr.name] = attr.value;
+            }
+            
+            elementPath.unshift(elementInfo);
+            current = current.parentElement;
+            
+            // Stop at body to prevent too long paths
+            if (current && current.tagName === 'BODY') break;
+        }
+        
+        console.log("Element path:", elementPath);
+        return {
+            elementPath: elementPath
+        };
     }
 
     // Function to compare styles with dimension tolerance
@@ -425,40 +532,6 @@ if (!window.multiLinkExtensionLoaded) {
         return urls;
     }
 
-    // Function to get element information including HTML structure
-    function getElementInfo(element) {
-        function getElementPath(el, maxParents = 2) {
-            const path = [];
-            let current = el;
-            let count = 0;
-            
-            while (current && count < maxParents) {
-                const elementInfo = {
-                    tagName: current.tagName.toLowerCase(),
-                    attributes: {},
-                    innerHTML: current.innerHTML,
-                    outerHTML: current.outerHTML
-                };
-                
-                // Get all attributes
-                Array.from(current.attributes).forEach(attr => {
-                    elementInfo.attributes[attr.name] = attr.value;
-                });
-                
-                path.unshift(elementInfo);
-                current = current.parentElement;
-                count++;
-            }
-            
-            return path;
-        }
-        
-        return {
-            elementPath: getElementPath(element),
-            url: getElementUrl(element)
-        };
-    }
-
     // Rectangle selection variables
     let isDrawingRectangle = false;
     let startX = 0;
@@ -581,19 +654,26 @@ if (!window.multiLinkExtensionLoaded) {
 
     // Function to evaluate XPath
     function evaluateXPath(xpath) {
-        const result = document.evaluate(
-            xpath,
-            document,
-            null,
-            XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-            null
-        );
-        
-        const elements = [];
-        for (let i = 0; i < result.snapshotLength; i++) {
-            elements.push(result.snapshotItem(i));
+        try {
+            const result = document.evaluate(
+                xpath,
+                document,
+                null,
+                XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+                null
+            );
+            
+            const elements = [];
+            for (let i = 0; i < result.snapshotLength; i++) {
+                elements.push(result.snapshotItem(i));
+            }
+            
+            console.log(`XPath '${xpath}' matched ${elements.length} elements`);
+            return elements;
+        } catch (error) {
+            console.error('Error evaluating XPath:', error);
+            return [];
         }
-        return elements;
     }
 
     // Function to clear preview highlights
@@ -605,110 +685,100 @@ if (!window.multiLinkExtensionLoaded) {
 
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        console.log("Content script received message:", request);
+        
         if (request.action === "startRectangleSelect") {
             startRectangleSelection();
             sendResponse({ success: true });
         } else if (request.action === "highlightLink") {
-            console.log("Link clicked:", request.data.linkUrl);
+            const elements = findClickableElements();
+            console.log("Looking for element with URL:", request.url);
+            const targetElement = elements.find(el => getElementUrl(el) === request.url);
             
-            const allElements = findClickableElements();
-            const clickedElement = allElements.find(el => 
-                getElementUrl(el) === request.data.linkUrl
-            );
+            if (targetElement) {
+                console.log("Found target element:", targetElement);
+                targetElement.classList.add('multi-link-highlight');
+                highlightedElements.add(targetElement);
+                selectedUrls.add(request.url);
+                addCloseButton(targetElement);
+                saveState();
+                sendResponse({ success: true });
+            } else {
+                console.error("Target element not found for URL:", request.url);
+                sendResponse({ error: "Element not found" });
+            }
+        } else if (request.action === "getElementInfo") {
+            const elements = findClickableElements();
+            const targetUrl = normalizeUrl(request.url);
+            console.log("Looking for element with normalized URL:", targetUrl);
             
-            if (clickedElement) {
-                const clickedStyles = getRelevantStyles(clickedElement);
-                
-                allElements.forEach(element => {
-                    const elementUrl = getElementUrl(element);
-                    if (elementUrl && !selectedUrls.has(elementUrl)) {
-                        const elementStyles = getRelevantStyles(element);
-                        if (haveSimilarStyles(clickedStyles, elementStyles)) {
-                            element.classList.add(element === clickedElement ? 'multi-link-highlight' : 'multi-link-similar');
-                            highlightedElements.add(element);
-                            selectedUrls.add(elementUrl);
-                            addCloseButton(element);
-                        }
-                    }
+            // More detailed logging of potential matches
+            const potentialElements = elements.filter(el => {
+                const elUrl = getElementUrl(el);
+                console.log(`Comparing URLs:\n  Target: ${targetUrl}\n  Element: ${elUrl}\n  Match: ${elUrl === targetUrl}`);
+                return elUrl === targetUrl;
+            });
+            
+            console.log(`Found ${potentialElements.length} potential matching elements`);
+            
+            if (potentialElements.length === 0) {
+                // Try a more lenient match if no exact matches found
+                console.log("Trying fuzzy URL matching...");
+                const fuzzyMatches = elements.filter(el => {
+                    const elUrl = getElementUrl(el);
+                    if (!elUrl || !targetUrl) return false;
+                    
+                    // Check if URLs share significant parts
+                    const targetParts = targetUrl.split(/[/?#]/);
+                    const elParts = elUrl.split(/[/?#]/);
+                    const commonParts = targetParts.filter(part => elParts.includes(part));
+                    
+                    const match = commonParts.length > 2;
+                    console.log(`Fuzzy comparing:\n  Target: ${targetUrl}\n  Element: ${elUrl}\n  Common parts: ${commonParts.length}\n  Match: ${match}`);
+                    return match;
                 });
                 
-                clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                console.log('Found similar links:', highlightedElements.size - 1);
-                saveState();
-            }
-            sendResponse({ success: true });
-        } else if (request.action === "highlightSingleLink") {
-            console.log("Single link selected:", request.data.linkUrl);
-            
-            const allElements = findClickableElements();
-            const clickedElement = allElements.find(el => 
-                getElementUrl(el) === request.data.linkUrl
-            );
-            
-            if (clickedElement) {
-                const elementUrl = request.data.linkUrl;
-                if (!selectedUrls.has(elementUrl)) {
-                    clickedElement.classList.add('multi-link-highlight');
-                    highlightedElements.add(clickedElement);
-                    selectedUrls.add(elementUrl);
-                    addCloseButton(clickedElement);
-                    clickedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    saveState();
+                if (fuzzyMatches.length > 0) {
+                    console.log(`Found ${fuzzyMatches.length} fuzzy matches`);
+                    const elementInfo = getElementInfo(fuzzyMatches[0]);
+                    sendResponse({ elementInfo });
+                    return true;
                 }
             }
-            sendResponse({ success: true });
-        } else if (request.action === "undo") {
-            const success = undo();
-            sendResponse({ success });
-        } else if (request.action === "redo") {
-            const success = redo();
-            sendResponse({ success });
-        } else if (request.action === "openSelectedLinks") {
-            getSelectedUrls().then(urls => {
-                if (urls.length > 0) {
-                    chrome.runtime.sendMessage({
-                        action: "openUrls",
-                        urls: urls
-                    });
-                }
-                sendResponse({ success: true });
-            });
-            return true; // Keep the message channel open for async response
-        } else if (request.action === "deselectAllLinks") {
-            removeAllHighlights(true);
-            sendResponse({ success: true });
-        } else if (request.action === "getSelectedUrls") {
-            getSelectedUrls().then(urls => {
-                sendResponse({ urls: urls });
-            });
-            return true; // Keep the message channel open for async response
-        } else if (request.action === "removeUrl") {
-            highlightedElements.forEach(element => {
-                if (getElementUrl(element) === request.url) {
-                    element.classList.remove('multi-link-highlight', 'multi-link-similar');
-                    const closeBtn = element.querySelector('.multi-link-close');
-                    if (closeBtn) closeBtn.remove();
-                    highlightedElements.delete(element);
-                    selectedUrls.delete(request.url);
-                }
-            });
-            saveState();
-            sendResponse({ success: true });
+            
+            const targetElement = potentialElements[0];
+            if (targetElement) {
+                console.log("Found target element:", targetElement);
+                const elementInfo = getElementInfo(targetElement);
+                sendResponse({ elementInfo });
+            } else {
+                console.error("Target element not found for URL:", targetUrl);
+                sendResponse({ error: "Element not found" });
+            }
+            return true;
         } else if (request.action === "previewXPathSelection") {
+            // Clear any existing previews
             clearPreviews();
+            
+            // Evaluate XPath and highlight matching elements
             const elements = evaluateXPath(request.xpath);
-            elements.forEach(el => el.classList.add('multi-link-preview'));
+            elements.forEach(element => {
+                element.classList.add('multi-link-preview');
+            });
+            
+            // Send back the number of matching elements
             sendResponse({ matchCount: elements.length });
+            return true; // Keep the message channel open for the async response
         } else if (request.action === "finalizeXPathSelection") {
             const elements = evaluateXPath(request.xpath);
             clearPreviews();
             
             elements.forEach(element => {
-                const elementUrl = getElementUrl(element);
-                if (elementUrl && !selectedUrls.has(elementUrl)) {
+                const url = getElementUrl(element);
+                if (url && !selectedUrls.has(url)) {
                     element.classList.add('multi-link-highlight');
                     highlightedElements.add(element);
-                    selectedUrls.add(elementUrl);
+                    selectedUrls.add(url);
                     addCloseButton(element);
                 }
             });
@@ -718,19 +788,6 @@ if (!window.multiLinkExtensionLoaded) {
         } else if (request.action === "cancelXPathSelection") {
             clearPreviews();
             sendResponse({ success: true });
-        } else if (request.action === "getElementInfo") {
-            const allElements = findClickableElements();
-            const targetElement = allElements.find(el => 
-                getElementUrl(el) === request.data.linkUrl
-            );
-            
-            if (targetElement) {
-                sendResponse({ 
-                    elementInfo: getElementInfo(targetElement)
-                });
-            }
         }
-        
-        return true;
     });
 }

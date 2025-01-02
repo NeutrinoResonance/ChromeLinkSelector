@@ -31,33 +31,56 @@
             line-height: 1.5;
         }
 
+        .element-wrapper {
+            margin: 4px 0;
+        }
+
+        .element-content {
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .element-content.selected-element {
+            background: rgba(86, 156, 214, 0.1);
+        }
+
         .tag {
             color: #569cd6;
             user-select: none;
         }
 
-        .attribute {
-            color: #9cdcfe;
+        .tag.clickable {
             cursor: pointer;
             padding: 2px 4px;
             border-radius: 3px;
-            transition: all 0.2s;
-            display: inline-block;
+        }
+
+        .tag.clickable:hover {
+            background: rgba(86, 156, 214, 0.1);
+        }
+
+        .attribute {
+            color: #9cdcfe;
             margin: 0 2px;
             user-select: none;
         }
 
-        .attribute:hover {
+        .attr-name.clickable {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .attr-name.clickable:hover {
             background: rgba(156, 220, 254, 0.1);
         }
 
         .attribute.selected {
             background: rgba(156, 220, 254, 0.2);
             outline: 1px solid #9cdcfe;
-        }
-
-        .attr-name {
-            color: #9cdcfe;
+            border-radius: 3px;
         }
 
         .value {

@@ -1,6 +1,7 @@
 let selectedAttributes = new Set();
 let currentElementInfo = null;
 let currentExpression = '';
+let selectedElement = null; // Track which element in the path is selected
 
 // Function to escape special characters in attribute values
 function escapeValue(value) {
@@ -19,13 +20,14 @@ function escapeHtml(unsafe) {
 
 // Function to generate XPath from selected attributes
 function generateXPath() {
-    if (!currentElementInfo || selectedAttributes.size === 0) return '//a';
+    if (!currentElementInfo || !selectedElement || selectedAttributes.size === 0) {
+        return '//a';
+    }
     
     const conditions = [];
-    const targetElement = currentElementInfo.elementPath[currentElementInfo.elementPath.length - 1];
     
     selectedAttributes.forEach(attr => {
-        const value = targetElement.attributes[attr];
+        const value = selectedElement.attributes[attr];
         if (value) {
             if (attr === 'class') {
                 const classes = value.split(' ');
@@ -40,9 +42,10 @@ function generateXPath() {
         }
     });
     
+    const tagName = selectedElement.tagName.toLowerCase();
     return conditions.length > 0 
-        ? `//a[${conditions.join(' and ')}]`
-        : '//a';
+        ? `//${tagName}[${conditions.join(' and ')}]`
+        : `//${tagName}`;
 }
 
 // Function to create collapsible DOM viewer
@@ -53,19 +56,41 @@ function createDOMViewer(elementInfo) {
     function createElementView(elementData, depth = 0) {
         const wrapper = document.createElement('div');
         wrapper.style.marginLeft = `${depth * 20}px`;
+        wrapper.className = 'element-wrapper';
         
         const content = document.createElement('div');
-        content.innerHTML = `<span class="tag">&lt;${elementData.tagName}</span>`;
+        content.className = 'element-content';
+        
+        // Make the tag name clickable
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'tag clickable';
+        tagSpan.innerHTML = `&lt;${elementData.tagName}`;
+        tagSpan.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Update selected element
+            selectedElement = elementData;
+            
+            // Clear previous element selections
+            document.querySelectorAll('.element-content').forEach(el => {
+                el.classList.remove('selected-element');
+            });
+            content.classList.add('selected-element');
+            
+            updatePreview();
+        });
+        content.appendChild(tagSpan);
         
         // Add attributes
         Object.entries(elementData.attributes).forEach(([name, value]) => {
             const attrSpan = document.createElement('span');
-            attrSpan.className = `attribute${selectedAttributes.has(name) ? ' selected' : ''}`;
+            attrSpan.className = `attribute${selectedAttributes.has(name) && selectedElement === elementData ? ' selected' : ''}`;
             attrSpan.setAttribute('data-attr', name);
             
             // Create separate spans for attribute name and value
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'attr-name';
+            nameSpan.className = 'attr-name clickable';
             nameSpan.textContent = ` ${name}`;
             
             const valueSpan = document.createElement('span');
@@ -75,13 +100,21 @@ function createDOMViewer(elementInfo) {
             attrSpan.appendChild(nameSpan);
             attrSpan.appendChild(valueSpan);
             
-            // Add click handler to the entire attribute span
-            attrSpan.addEventListener('click', (e) => {
+            // Add click handler to the attribute name
+            nameSpan.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                console.log('Attribute clicked:', name); // Debug log
+                // Update selected element
+                selectedElement = elementData;
                 
+                // Clear previous element selections
+                document.querySelectorAll('.element-content').forEach(el => {
+                    el.classList.remove('selected-element');
+                });
+                content.classList.add('selected-element');
+                
+                // Toggle attribute selection
                 if (selectedAttributes.has(name)) {
                     selectedAttributes.delete(name);
                     attrSpan.classList.remove('selected');
@@ -90,17 +123,13 @@ function createDOMViewer(elementInfo) {
                     attrSpan.classList.add('selected');
                 }
                 
-                // Debug logs
-                console.log('Selected attributes:', Array.from(selectedAttributes));
-                console.log('Current element info:', currentElementInfo);
-                
                 updatePreview();
             });
             
             content.appendChild(attrSpan);
         });
         
-        content.innerHTML += '<span class="tag">&gt;</span>';
+        content.appendChild(document.createTextNode('>'));
         wrapper.appendChild(content);
         
         return wrapper;
@@ -115,7 +144,7 @@ function createDOMViewer(elementInfo) {
 // Function to update preview
 function updatePreview() {
     currentExpression = generateXPath();
-    console.log('Generated XPath:', currentExpression); // Debug log
+    console.log('Generated XPath:', currentExpression);
     
     const expressionElement = document.querySelector('.expression');
     expressionElement.textContent = currentExpression;
@@ -136,26 +165,57 @@ function updatePreview() {
 
 // Initialize the popup
 document.addEventListener('DOMContentLoaded', () => {
-    // Get the target element from the background script
-    chrome.runtime.sendMessage({ action: "getTargetElement" }, (response) => {
+    chrome.runtime.sendMessage({ action: "getTargetElement" }, async (response) => {
         if (response && response.elementInfo) {
             currentElementInfo = response.elementInfo;
-            createDOMViewer(currentElementInfo);
             
-            // Debug log
-            console.log('Received element info:', currentElementInfo);
+            // Create the DOM viewer
+            const domViewer = createDOMViewer(currentElementInfo);
+            document.getElementById('dom-structure').appendChild(domViewer);
+            
+            // Add click handlers for attribute selection
+            document.querySelectorAll('.attribute').forEach(attr => {
+                attr.addEventListener('click', (e) => {
+                    const attrName = e.target.dataset.name;
+                    const attrValue = e.target.dataset.value;
+                    
+                    if (selectedAttributes.has(`${attrName}=${attrValue}`)) {
+                        selectedAttributes.delete(`${attrName}=${attrValue}`);
+                        e.target.classList.remove('selected');
+                    } else {
+                        selectedAttributes.add(`${attrName}=${attrValue}`);
+                        e.target.classList.add('selected');
+                    }
+                    
+                    // Update XPath expression and preview
+                    currentExpression = generateXPath();
+                    document.getElementById('xpath-expression').value = currentExpression;
+                    updatePreview();
+                });
+            });
+            
+            // Select the element in the path when clicked
+            document.querySelectorAll('.element').forEach((el, index) => {
+                el.addEventListener('click', () => {
+                    document.querySelectorAll('.element').forEach(e => e.classList.remove('selected'));
+                    el.classList.add('selected');
+                    selectedElement = index;
+                    
+                    // Update XPath expression and preview
+                    currentExpression = generateXPath();
+                    document.getElementById('xpath-expression').value = currentExpression;
+                    updatePreview();
+                });
+            });
+        } else {
+            console.error('No element info received');
+            document.getElementById('error-message').textContent = 'Failed to get element information. Please try again.';
         }
     });
     
-    // Handle preview button
-    document.querySelector('.preview-btn').addEventListener('click', () => {
-        console.log('Preview button clicked'); // Debug log
-        updatePreview();
-    });
+    document.querySelector('.preview-btn').addEventListener('click', updatePreview);
     
-    // Handle finalize button
     document.querySelector('.finalize-btn').addEventListener('click', () => {
-        console.log('Finalize button clicked'); // Debug log
         if (currentExpression) {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, {
@@ -168,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Handle cancel button
     document.querySelector('.cancel-btn').addEventListener('click', () => {
         chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
             chrome.tabs.sendMessage(tabs[0].id, {

@@ -70,8 +70,6 @@ chrome.commands.onCommand.addListener(async (command) => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
     if (info.menuItemId === "selectSimilarLinks" || info.menuItemId === "selectSingleLink") {
-      console.log("Context menu info:", info);
-      
       // Inject content script first if needed
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -80,16 +78,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       // Send message to content script and wait for response
       await chrome.tabs.sendMessage(tab.id, {
-        action: info.menuItemId === "selectSimilarLinks" ? "highlightLink" : "highlightSingleLink",
-        data: { linkUrl: info.linkUrl }
+        action: "highlightLink",
+        url: info.linkUrl
       });
     } else if (info.menuItemId === "selectByAttributes") {
       // Get element info from content script
       chrome.tabs.sendMessage(tab.id, {
         action: "getElementInfo",
-        data: {
-          linkUrl: info.linkUrl
-        }
+        url: info.linkUrl
       }, (response) => {
         if (response && response.elementInfo) {
           targetElementInfo = response.elementInfo;
@@ -100,6 +96,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             width: 800,
             height: 600
           });
+        } else {
+          console.error("Failed to get element info:", response);
         }
       });
     } else if (info.menuItemId === "selectByRectangle") {
@@ -139,17 +137,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("Background script received message:", request);
-  
   if (request.action === "getTargetElement") {
     sendResponse({ elementInfo: targetElementInfo });
     targetElementInfo = null; // Clear after use
-  }
-
-  // Handle opening multiple URLs
-  if (request.action === "openUrls") {
+  } else if (request.action === "openUrls") {
     request.urls.forEach(url => {
       chrome.tabs.create({ url: url });
     });
   }
+  
+  return true; // Keep the message channel open for async responses
 });
